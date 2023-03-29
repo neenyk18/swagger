@@ -1,0 +1,213 @@
+openapi: 3.0.9
+info:
+  title: Online money transfer APIs definition
+  description: | 
+    # About Us 
+    **Top Bank** is a leading bank based in Belgium, providing variety of services in the SEPA region. Our customers can transfer money instantly via our Java based app that can be used on mobile/ web using our _REST APIs_. Secured transfer of money is reliable with our API services communication with Top Bank databse.
+    # Payments supported
+      - Sepa credit transfer
+        - Corporate transactions
+        - Non corporate transactions
+  termsOfService: https://topbank.be/service-terms/
+  license:
+    name: Top Bank License
+    url: https://example.be/
+  version: 0.0.1
+  contact:
+    email: support@topbank.be
+    url: https://topbank.be/contact-us/
+    name: API Support
+servers: 
+  - url: https://staging.topbank-server.be/v1
+    description: Staging server
+  - url: https://{username}.server.com:{port}/{version}
+    variables:
+      username:
+        default: demotemp
+        description: This value is assigned by the service provider
+      port:
+        enum: 
+          - "8443"
+          - "9000"
+        default: "8443"
+      version:
+        default: v1
+tags:
+  - name: Account
+    description: Account related operation
+  - name: Beneficiary
+    description: Beneficiary related operation
+security:
+  - BearerAuth: []
+paths:
+  /accountdetails:
+    get:
+      tags: 
+        - Account
+      summary: List all accounts and details
+      description: Return all available debit and beneficiary accounts for the login customer
+      parameters:
+        - name: fetchaccounttype
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - myAccount
+              - beneficiaryaccount
+            description: >
+              * `myAccount` - will provide list of customer accounts when boolean isbeneficiaryaccount is false
+              * `beneficiaryaccount` - will provide list of beneficiary accounts when boolean isbeneficiaryaccount is true
+      responses:
+        '200':
+          description: all debit and beneficiary accounts are displayed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccountDetails"
+        '500':
+          $ref: "#/components/responses/InternalServerError"
+  /accountbalance:
+    get:
+      tags:
+        - Account
+      summary: Displays available balance
+      description: Returns available balance as of current day and time
+      parameters:
+        - name: accountnumber
+          in: query
+          schema:
+            type: string
+          examples:
+            currentaccount:
+              summary: Example of self account for Dominique
+              value: BE12 XXXX XXXX 4321
+            loanaccount: 
+              summary: Example of another self but loan account for Dominique
+              value: BE12 XXXX XXXX 0000
+            jointaccount:
+              summary: Example of joint account for Dominique-Massart
+              value: BE12 XXXX XXXX 1234
+      responses:
+        '200':
+          description: available balance is displayed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailableBalance"
+        '500':
+          $ref: "#/components/responses/InternalServerError"
+  /beneficiary:
+    post:
+      tags:
+        - Beneficiary
+      summary: Add Beneficiary
+      description: New beneficiary is added
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountDetails"
+      responses:
+        '201':
+          description: Benificiary is added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  accountnumber:
+                    type: string
+        '500':
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags:
+        - Beneficiary
+      summary: delete beneficiary
+      description: Deletes existing or new beneficiary
+      parameters:
+        - name: accountnumber
+          in: query
+          required: true
+          schema:
+            type: string
+          example: BE12 XXXX XXXX 2345
+      responses:
+        '204':
+          description: Beneficiary is deleetd successfully
+        '500':
+          $ref: "#/components/responses/InternalServerError"
+  /moneytransfer:
+    post:
+      tags:
+        - Account
+      summary: upload a payment message 
+      description: |
+        Posting xml message to upload 
+        - new payment, 
+        - recall payment, 
+        - communication message etc
+      requestBody:
+        content: 
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                uploadfile:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: payment posted successfully
+        '500':
+          $ref: "#/components/responses/InternalServerError"
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    AllAccountsList:
+      name: orderid
+      in: query
+      required: true
+      schema:
+        type: integer
+  schemas:
+    Accounts:
+      type: object
+      properties:
+        name:
+          type: string
+        accountnumber:
+          type: string
+    AvailableBalance:
+      allOf:
+        - $ref: "#/components/schemas/Accounts"
+        - type: object
+          properties:
+            balance: 
+             type: number
+    AccountDetails:
+      allOf:
+        - $ref: "#/components/schemas/Accounts"
+        - type: object
+          properties:
+            bic:
+              type: string
+            isbeneficiaryaccount:
+              type: boolean
+          required: [name, accountnumber]
+  responses:
+    InternalServerError:
+      description: | 
+        An error occured while processing the request.
+        Please contact support@topbank.be
+    
+    
+  
